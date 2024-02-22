@@ -2,61 +2,57 @@ Shader "Custom/WaterShader"
 {
     Properties
     {
-        _WaterColor ("Water Color", Color) = (0.5, 0.5, 0.5, 1)
+        _Color ("Color", Color) = (1,1,1,1)
+        _MainTex ("Albedo (RGB)", 2D) = "white" {}
+        _Glossiness ("Smoothness", Range(0,1)) = 0.5
+        _Metallic ("Metallic", Range(0,1)) = 0.0
     }
     SubShader
     {
         Tags { "RenderType"="Opaque" }
-        LOD 100
+        LOD 200
 
-        Pass
+        CGPROGRAM
+        // Physically based Standard lighting model, and enable shadows on all light types
+        #pragma surface surf Standard fullforwardshadows vertex:vert
+
+        // Use shader model 3.0 target, to get nicer looking lighting
+        #pragma target 3.0
+
+        sampler2D _MainTex;
+
+        struct Input
         {
-            CGPROGRAM
-            #pragma vertex vert
-            #pragma fragment frag
+            float2 uv_MainTex;
+        };
 
-            #include "UnityCG.cginc"
+        half _Glossiness;
+        half _Metallic;
+        fixed4 _Color;
 
-            struct appdata
-            {
-                float4 vertex : POSITION;
-                float2 uv : TEXCOORD0;
-            };
+        // Add instancing support for this shader. You need to check 'Enable Instancing' on materials that use the shader.
+        // See https://docs.unity3d.com/Manual/GPUInstancing.html for more information about instancing.
+        // #pragma instancing_options assumeuniformscaling
+        UNITY_INSTANCING_BUFFER_START(Props)
+            // put more per-instance properties here
+        UNITY_INSTANCING_BUFFER_END(Props)
 
-            struct v2f
-            {
-                float2 uv : TEXCOORD0;
-                float4 vertex : SV_POSITION;
-            };
-
-            fixed4 _WaterColor;
-
-            v2f vert (appdata v)
-            {
-                float pi = 3.14159;
-                v2f o;
-                o.uv = v.uv;
-
-                // Create a wave effect using sine function
-                float amplitude = 1;
-                float waveLength = 4 * pi;
-                float frequency = (2 * pi) / waveLength;
-                float waveSpeed = 1;
-                o.uv.xy = amplitude * sin(o.uv.xy * frequency + _Time.y * waveSpeed);
-                
-                // Move the vertex height to altered UV value
-                float3 vertexPosition = v.vertex;
-                vertexPosition.y = o.uv.x + o.uv.y;
-
-                o.vertex = UnityObjectToClipPos(vertexPosition);
-                return o;
-            }
-
-            fixed4 frag (v2f i) : SV_Target
-            {
-                return _WaterColor;
-            }
-            ENDCG
+        void vert(inout appdata_full vertexData)
+        {
+            
         }
+
+        void surf (Input IN, inout SurfaceOutputStandard o)
+        {
+            // Albedo comes from a texture tinted by color
+            fixed4 c = tex2D (_MainTex, IN.uv_MainTex) * _Color;
+            o.Albedo = c.rgb;
+            // Metallic and smoothness come from slider variables
+            o.Metallic = _Metallic;
+            o.Smoothness = _Glossiness;
+            o.Alpha = c.a;
+        }
+        ENDCG
     }
+    FallBack "Diffuse"
 }
