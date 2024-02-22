@@ -44,9 +44,18 @@ Shader "Custom/WaterShader"
             
             // Alter vertex height with sine wave
             float frequency = 2 * UNITY_PI / _WaveLength;
-            vertexPosition.y = _Amplitude * sin(vertexPosition.x * frequency + _Time.y * _WaveSpeed);
+            float phase = vertexPosition.x * frequency + _Time.y * _WaveSpeed;
+            vertexPosition.y = _Amplitude * sin(phase);
+
+            // Calculate the tangent vector by taking the derivative of the sine wave
+            float derivative = _Amplitude * frequency * cos(phase);
+            float3 tangentVector = normalize(float3(1, derivative, 0));
+            // Because the sine wave is only in the y direction, the bitangent is just (0, 0, 1)
+            // N = T x B
+            float3 normalVector = normalize(float3(-tangentVector.y, tangentVector.x, 0));
 
             vertexData.vertex.xyz = vertexPosition;
+            vertexData.normal = normalVector;
         }
 
         void surf (Input IN, inout SurfaceOutputStandard o)
