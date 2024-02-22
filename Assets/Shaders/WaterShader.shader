@@ -6,6 +6,10 @@ Shader "Custom/WaterShader"
         _MainTex ("Albedo (RGB)", 2D) = "white" {}
         _Glossiness ("Smoothness", Range(0,1)) = 0.5
         _Metallic ("Metallic", Range(0,1)) = 0.0
+
+        _Amplitude ("Amplitude", Float) = 1
+        _WaveLength ("Wave Length", Float) = 6.28
+        _WaveSpeed ("Wave Speed", Float) = 1
     }
     SubShader
     {
@@ -30,16 +34,19 @@ Shader "Custom/WaterShader"
         half _Metallic;
         fixed4 _Color;
 
-        // Add instancing support for this shader. You need to check 'Enable Instancing' on materials that use the shader.
-        // See https://docs.unity3d.com/Manual/GPUInstancing.html for more information about instancing.
-        // #pragma instancing_options assumeuniformscaling
-        UNITY_INSTANCING_BUFFER_START(Props)
-            // put more per-instance properties here
-        UNITY_INSTANCING_BUFFER_END(Props)
+        float _Amplitude;
+        float _WaveLength;
+        float _WaveSpeed;
 
         void vert(inout appdata_full vertexData)
         {
+            float3 vertexPosition = vertexData.vertex.xyz;
             
+            // Alter vertex height with sine wave
+            float frequency = 2 * UNITY_PI / _WaveLength;
+            vertexPosition.y = _Amplitude * sin(vertexPosition.x * frequency + _Time.y * _WaveSpeed);
+
+            vertexData.vertex.xyz = vertexPosition;
         }
 
         void surf (Input IN, inout SurfaceOutputStandard o)
