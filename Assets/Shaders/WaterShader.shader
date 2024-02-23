@@ -9,6 +9,7 @@ Shader "Custom/WaterShader"
 
         _Steepness ("Wave Steepness", Range(0, 1)) = 0.5
         _WaveLength ("Wave Length", Float) = 6.28
+        _Direction ("Wave Direction (2D)", Vector) = (1, 0, 0, 0)
     }
     SubShader
     {
@@ -35,6 +36,7 @@ Shader "Custom/WaterShader"
 
         float _Steepness;
         float _WaveLength;
+        float2 _Direction;
 
         void vert(inout appdata_full vertexData)
         {
@@ -43,18 +45,30 @@ Shader "Custom/WaterShader"
             // Alter vertex height with gerstner wave
             float frequency = 2 * UNITY_PI / _WaveLength;
             float waveSpeed = sqrt(9.81 / frequency); // w = sqrt(g / f)
-            float phase = vertexPosition.x * frequency + _Time.y * waveSpeed;
+            float2 direction = normalize(_Direction);
+            float phase = frequency * dot(direction, vertexPosition.xz) + _Time.y * waveSpeed;
             float amplitude = _Steepness / frequency;
-            vertexPosition.x += amplitude * cos(phase); // f(x, t) = x + A * cos(f * x + t * w)
+
+            vertexPosition.x += direction.x * amplitude * cos(phase); // f(x, t) = x + Dx * A * cos(p)
             vertexPosition.y = amplitude * sin(phase); // f(y, t) = A * cos(f * y + t * w)
+            vertexPosition.z += direction.y * amplitude * cos(phase); // f(z, t) = z + Dy * A * cos(p)
 
             // Calculate the tangent vector by taking the derivative of the wave
-            float xDerivative = 1 - _Steepness * frequency * sin(phase); // df/dx = 1 - A * f * sin(f * x + t * w)
-            float yDerivative = _Steepness * frequency * cos(phase); // df/dy = A * f * cos(f * y + t * w)
-            float3 tangentVector = normalize(float3(xDerivative, yDerivative, 0));
-            // Because the wave is only in the x direction, the bitangent is just (0, 0, 1)
-            // N = T x B
-            float3 normalVector = normalize(float3(-tangentVector.y, tangentVector.x, 0));
+            float3 tangent = float3(
+                1 - direction.x * direction.x * _Steepness * sin(phase), // Tx = 1 - Dx^2 * A * sin(p)
+                direction.x * _Steepness * cos(phase), // Ty = Dx * A * cos(p)
+                -direction.x * direction.y * _Steepness * sin(phase) // Tz = -Dx * Dy * A * sin(p)
+            );
+            
+            // Calculate binormal
+            float3 binormal = float3(
+                -direction.x * direction.y * _Steepness * sin(phase), // Bx = -Dx * Dy * A * sin(p)
+                direction.y * _Steepness * cos(phase), // By = Dy * A * cos(p)
+                1 - direction.y * direction.y * _Steepness * sin(phase) // Bz = 1 - Dy^2 * A * sin(p)
+            );
+            
+            // Calculate normal
+            float3 normalVector = normalize(cross(binormal, tangent)); // N = B x T
 
             vertexData.vertex.xyz = vertexPosition;
             vertexData.normal = normalVector;
