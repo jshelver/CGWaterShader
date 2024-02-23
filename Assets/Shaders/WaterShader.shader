@@ -9,7 +9,6 @@ Shader "Custom/WaterShader"
 
         _Steepness ("Wave Steepness", Range(0, 1)) = 0.5
         _WaveLength ("Wave Length", Float) = 6.28
-        _WaveSpeed ("Wave Speed", Float) = 1
     }
     SubShader
     {
@@ -36,7 +35,6 @@ Shader "Custom/WaterShader"
 
         float _Steepness;
         float _WaveLength;
-        float _WaveSpeed;
 
         void vert(inout appdata_full vertexData)
         {
@@ -44,7 +42,8 @@ Shader "Custom/WaterShader"
             
             // Alter vertex height with gerstner wave
             float frequency = 2 * UNITY_PI / _WaveLength;
-            float phase = vertexPosition.x * frequency + _Time.y * _WaveSpeed;
+            float waveSpeed = sqrt(9.81 / frequency); // w = sqrt(g / f)
+            float phase = vertexPosition.x * frequency + _Time.y * waveSpeed;
             float amplitude = _Steepness / frequency;
             vertexPosition.x += amplitude * cos(phase); // f(x, t) = x + A * cos(f * x + t * w)
             vertexPosition.y = amplitude * sin(phase); // f(y, t) = A * cos(f * y + t * w)
