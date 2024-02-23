@@ -7,9 +7,8 @@ Shader "Custom/WaterShader"
         _Glossiness ("Smoothness", Range(0,1)) = 0.5
         _Metallic ("Metallic", Range(0,1)) = 0.0
 
-        _Steepness ("Wave Steepness", Range(0, 1)) = 0.5
-        _WaveLength ("Wave Length", Float) = 6.28
-        _Direction ("Wave Direction (2D)", Vector) = (1, 0, 0, 0)
+        _WaveA ("Wave A (dir, steep, length)", Vector) = (1, 1, 0.5, 6.28)
+        _WaveB ("Wave B (dir, steep, length)", Vector) = (1, 0, 0.3, 4)
     }
     SubShader
     {
@@ -34,44 +33,63 @@ Shader "Custom/WaterShader"
         half _Metallic;
         fixed4 _Color;
 
-        float _Steepness;
-        float _WaveLength;
-        float2 _Direction;
+        float4 _WaveA;
+        float4 _WaveB;
+
+        float3 GerstnerWave(float4 wave, float3 position, inout float3 tangent, inout float3 binormal)
+        {
+            // Get wave parameters
+            float2 direction = normalize(wave.xy);
+            float steepness = wave.z;
+            float wavelength = wave.w;
+
+            // Calculate wave modifiers
+            float frequency = 2 * UNITY_PI / wavelength;
+            float waveSpeed = sqrt(9.81 / frequency); // w = sqrt(g / f)
+            float phase = frequency * dot(direction, position.xz) + _Time.y * waveSpeed;
+            float amplitude = steepness / frequency;
+
+            // Calculate tangent
+            tangent += float3(
+                -direction.x * direction.x * steepness * sin(phase), // Tx = -Dx^2 * A * sin(p)
+                direction.x * steepness * cos(phase), // Ty = Dx * A * cos(p)
+                -direction.x * direction.y * steepness * sin(phase) // Tz = -Dx * Dy * A * sin(p)
+            );
+
+            // Calculate binormal
+            binormal += float3(
+                -direction.x * direction.y * steepness * sin(phase), // Bx = -Dx * Dy * A * sin(p)
+                direction.y * steepness * cos(phase), // By = Dy * A * cos(p)
+                -direction.y * direction.y * steepness * sin(phase) // Bz = -Dy^2 * A * sin(p)
+            );
+
+            // Calculate change in position due to wave
+            return float3(
+                direction.x * amplitude * cos(phase), // x = Dx * A * cos(p)
+                amplitude * sin(phase), // y = A * sin(p)
+                direction.y * amplitude * cos(phase) // z = Dy * A * cos(p)
+            );
+        }
 
         void vert(inout appdata_full vertexData)
         {
+            // Get current vertex position
             float3 vertexPosition = vertexData.vertex.xyz;
-            
-            // Alter vertex height with gerstner wave
-            float frequency = 2 * UNITY_PI / _WaveLength;
-            float waveSpeed = sqrt(9.81 / frequency); // w = sqrt(g / f)
-            float2 direction = normalize(_Direction);
-            float phase = frequency * dot(direction, vertexPosition.xz) + _Time.y * waveSpeed;
-            float amplitude = _Steepness / frequency;
 
-            vertexPosition.x += direction.x * amplitude * cos(phase); // f(x, t) = x + Dx * A * cos(p)
-            vertexPosition.y = amplitude * sin(phase); // f(y, t) = A * cos(f * y + t * w)
-            vertexPosition.z += direction.y * amplitude * cos(phase); // f(z, t) = z + Dy * A * cos(p)
+            // Initialize tangent and binormal
+            float3 tangent = float3(1, 0, 0);
+            float3 binormal = float3(0, 0, 1);
 
-            // Calculate the tangent vector by taking the derivative of the wave
-            float3 tangent = float3(
-                1 - direction.x * direction.x * _Steepness * sin(phase), // Tx = 1 - Dx^2 * A * sin(p)
-                direction.x * _Steepness * cos(phase), // Ty = Dx * A * cos(p)
-                -direction.x * direction.y * _Steepness * sin(phase) // Tz = -Dx * Dy * A * sin(p)
-            );
-            
-            // Calculate binormal
-            float3 binormal = float3(
-                -direction.x * direction.y * _Steepness * sin(phase), // Bx = -Dx * Dy * A * sin(p)
-                direction.y * _Steepness * cos(phase), // By = Dy * A * cos(p)
-                1 - direction.y * direction.y * _Steepness * sin(phase) // Bz = 1 - Dy^2 * A * sin(p)
-            );
-            
+            // Calculate total wave displacement
+            float3 updatedVertexPosition = vertexPosition;
+            updatedVertexPosition += GerstnerWave(_WaveA, vertexPosition, tangent, binormal);
+            updatedVertexPosition += GerstnerWave(_WaveB, vertexPosition, tangent, binormal);
+
             // Calculate normal
-            float3 normalVector = normalize(cross(binormal, tangent)); // N = B x T
+            float3 normal = normalize(cross(binormal, tangent)); // N = B x T
 
-            vertexData.vertex.xyz = vertexPosition;
-            vertexData.normal = normalVector;
+            vertexData.vertex.xyz = updatedVertexPosition;
+            vertexData.normal = normal;
         }
 
         void surf (Input IN, inout SurfaceOutputStandard o)
