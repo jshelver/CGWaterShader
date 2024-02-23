@@ -7,7 +7,7 @@ Shader "Custom/WaterShader"
         _Glossiness ("Smoothness", Range(0,1)) = 0.5
         _Metallic ("Metallic", Range(0,1)) = 0.0
 
-        _Amplitude ("Amplitude", Float) = 1
+        _Steepness ("Wave Steepness", Range(0, 1)) = 0.5
         _WaveLength ("Wave Length", Float) = 6.28
         _WaveSpeed ("Wave Speed", Float) = 1
     }
@@ -18,7 +18,7 @@ Shader "Custom/WaterShader"
 
         CGPROGRAM
         // Physically based Standard lighting model, and enable shadows on all light types
-        #pragma surface surf Standard fullforwardshadows vertex:vert
+        #pragma surface surf Standard fullforwardshadows vertex:vert addshadow
 
         // Use shader model 3.0 target, to get nicer looking lighting
         #pragma target 3.0
@@ -34,7 +34,7 @@ Shader "Custom/WaterShader"
         half _Metallic;
         fixed4 _Color;
 
-        float _Amplitude;
+        float _Steepness;
         float _WaveLength;
         float _WaveSpeed;
 
@@ -42,15 +42,18 @@ Shader "Custom/WaterShader"
         {
             float3 vertexPosition = vertexData.vertex.xyz;
             
-            // Alter vertex height with sine wave
+            // Alter vertex height with gerstner wave
             float frequency = 2 * UNITY_PI / _WaveLength;
             float phase = vertexPosition.x * frequency + _Time.y * _WaveSpeed;
-            vertexPosition.y = _Amplitude * sin(phase);
+            float amplitude = _Steepness / frequency;
+            vertexPosition.x += amplitude * cos(phase); // f(x, t) = x + A * cos(f * x + t * w)
+            vertexPosition.y = amplitude * sin(phase); // f(y, t) = A * cos(f * y + t * w)
 
-            // Calculate the tangent vector by taking the derivative of the sine wave
-            float derivative = _Amplitude * frequency * cos(phase);
-            float3 tangentVector = normalize(float3(1, derivative, 0));
-            // Because the sine wave is only in the y direction, the bitangent is just (0, 0, 1)
+            // Calculate the tangent vector by taking the derivative of the wave
+            float xDerivative = 1 - _Steepness * frequency * sin(phase); // df/dx = 1 - A * f * sin(f * x + t * w)
+            float yDerivative = _Steepness * frequency * cos(phase); // df/dy = A * f * cos(f * y + t * w)
+            float3 tangentVector = normalize(float3(xDerivative, yDerivative, 0));
+            // Because the wave is only in the x direction, the bitangent is just (0, 0, 1)
             // N = T x B
             float3 normalVector = normalize(float3(-tangentVector.y, tangentVector.x, 0));
 
