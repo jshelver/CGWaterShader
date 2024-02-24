@@ -22,11 +22,15 @@ Shader "Custom/WaterShader"
         // Use shader model 3.0 target, to get nicer looking lighting
         #pragma target 3.0
 
+        #include "UnityCG.cginc"
+        #include "LookingThroughWater.cginc"
+
         sampler2D _MainTex;
 
         struct Input
         {
             float2 uv_MainTex;
+            float4 screenPos;
         };
 
         half _Glossiness;
@@ -100,6 +104,8 @@ Shader "Custom/WaterShader"
             // Metallic and smoothness come from slider variables
             o.Metallic = _Metallic;
             o.Smoothness = _Glossiness;
+
+            o.Albedo = ColorBelowWater(IN.screenPos);
             o.Alpha = c.a;
         }
         ENDCG
