@@ -7,6 +7,9 @@ Shader "Custom/WaterShader"
         _Glossiness ("Smoothness", Range(0,1)) = 0.5
         _Metallic ("Metallic", Range(0,1)) = 0.0
 
+        _WaterFogColor ("Fog Color", Color) = (0.5, 0.5, 0.5, 0.2)
+        _WaterFogDensity ("Fog Density", Range(0, 2)) = 0.1
+
         _WaveA ("Wave A (dir, steep, length)", Vector) = (1, 1, 0.5, 6.28)
         _WaveB ("Wave B (dir, steep, length)", Vector) = (1, 0, 0.3, 4)
     }
@@ -15,9 +18,11 @@ Shader "Custom/WaterShader"
         Tags { "RenderType"="Transparent" "Queue"="Transparent" }
         LOD 200
 
+        GrabPass { "_WaterBackground" }
+
         CGPROGRAM
         // Physically based Standard lighting model, and enable shadows on all light types
-        #pragma surface surf Standard alpha vertex:vert addshadow
+        #pragma surface surf Standard alpha vertex:vert addshadow finalcolor:ResetAlpha
 
         // Use shader model 3.0 target, to get nicer looking lighting
         #pragma target 3.0
@@ -104,9 +109,14 @@ Shader "Custom/WaterShader"
             // Metallic and smoothness come from slider variables
             o.Metallic = _Metallic;
             o.Smoothness = _Glossiness;
-
-            o.Albedo = ColorBelowWater(IN.screenPos);
             o.Alpha = c.a;
+
+            o.Emission = ColorBelowWater(IN.screenPos) * (1 - c.a);
+        }
+
+        void ResetAlpha (Input IN, SurfaceOutputStandard o, inout fixed4 color)
+        {
+            color.a = 1;
         }
         ENDCG
     }
