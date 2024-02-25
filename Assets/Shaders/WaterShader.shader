@@ -11,7 +11,13 @@ Shader "Custom/WaterShader"
         _WaterFogDensity ("Fog Density", Range(0, 2)) = 0.1
 
         _WaveA ("Wave A (dir, steep, length)", Vector) = (1, 1, 0.5, 6.28)
+        _SpeedA ("Wave A Speed", Float) = 0.5
         _WaveB ("Wave B (dir, steep, length)", Vector) = (1, 0, 0.3, 4)
+        _SpeedB ("Wave B Speed", Float) = 0.5
+        _WaveC ("Wave C (dir, steep, length)", Vector) = (0.8, 0.3, 0.05, 2)
+        _SpeedC ("Wave C Speed", Float) = 0.25
+        _WaveD ("Wave D (dir, steep, length)", Vector) = (0.5, 0.2, 0.1, 1)
+        _SpeedD ("Wave D Speed", Float) = 0.25
     }
     SubShader
     {
@@ -43,9 +49,15 @@ Shader "Custom/WaterShader"
         fixed4 _Color;
 
         float4 _WaveA;
+        float _SpeedA;
         float4 _WaveB;
+        float _SpeedB;
+        float4 _WaveC;
+        float _SpeedC;
+        float4 _WaveD;
+        float _SpeedD;
 
-        float3 GerstnerWave(float4 wave, float3 position, inout float3 tangent, inout float3 binormal)
+        float3 GerstnerWave(float4 wave, float3 position, inout float3 tangent, inout float3 binormal, float speedModifier)
         {
             // Get wave parameters
             float2 direction = normalize(wave.xy);
@@ -54,7 +66,7 @@ Shader "Custom/WaterShader"
 
             // Calculate wave modifiers
             float frequency = 2 * UNITY_PI / wavelength;
-            float waveSpeed = sqrt(9.81 / frequency); // w = sqrt(g / f)
+            float waveSpeed = speedModifier * sqrt(9.81 / frequency); // w = sqrt(g / f)
             float phase = frequency * dot(direction, position.xz) + _Time.y * waveSpeed;
             float amplitude = steepness / frequency;
 
@@ -91,8 +103,10 @@ Shader "Custom/WaterShader"
 
             // Calculate total wave displacement
             float3 updatedVertexPosition = vertexPosition;
-            updatedVertexPosition += GerstnerWave(_WaveA, vertexPosition, tangent, binormal);
-            updatedVertexPosition += GerstnerWave(_WaveB, vertexPosition, tangent, binormal);
+            updatedVertexPosition += GerstnerWave(_WaveA, vertexPosition, tangent, binormal, _SpeedA);
+            updatedVertexPosition += GerstnerWave(_WaveB, vertexPosition, tangent, binormal, _SpeedB);
+            updatedVertexPosition += GerstnerWave(_WaveC, vertexPosition, tangent, binormal, _SpeedC);
+            updatedVertexPosition += GerstnerWave(_WaveD, vertexPosition, tangent, binormal, _SpeedD);
 
             // Calculate normal
             float3 normal = normalize(cross(binormal, tangent)); // N = B x T
